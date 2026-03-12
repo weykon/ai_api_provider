@@ -32,7 +32,14 @@ impl ApiConfig {
         let meta = provider_meta(self.provider);
         let base = self.base_url.as_deref().unwrap_or(meta.base_url);
         match meta.protocol {
-            ApiProtocol::Anthropic => base.to_string(),
+            ApiProtocol::Anthropic => {
+                let base = base.trim_end_matches('/');
+                if base.ends_with("/v1/messages") {
+                    base.to_string()
+                } else {
+                    format!("{}/v1/messages", base)
+                }
+            }
             ApiProtocol::OpenAiCompat => {
                 let base = base.trim_end_matches('/');
                 if base.ends_with("/chat/completions") {
@@ -240,7 +247,21 @@ mod tests {
     #[test]
     fn test_endpoint_anthropic() {
         let config = ApiConfig::new(ApiProvider::Claude, "test".into());
-        assert!(config.endpoint().contains("anthropic.com"));
+        assert!(config.endpoint().ends_with("/v1/messages"));
+    }
+
+    #[test]
+    fn test_endpoint_anthropic_auto_appends_path() {
+        let mut config = ApiConfig::new(ApiProvider::Claude, "test".into());
+        config.base_url = Some("http://relay.example.com:8021".into());
+        assert_eq!(config.endpoint(), "http://relay.example.com:8021/v1/messages");
+    }
+
+    #[test]
+    fn test_endpoint_anthropic_no_double_path() {
+        let mut config = ApiConfig::new(ApiProvider::Claude, "test".into());
+        config.base_url = Some("http://relay.example.com:8021/v1/messages".into());
+        assert_eq!(config.endpoint(), "http://relay.example.com:8021/v1/messages");
     }
 
     #[test]
