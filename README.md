@@ -1,5 +1,9 @@
 # ai_api_provider
 
+[![Crates.io Total Downloads](https://img.shields.io/crates/d/ai_api_provider)](https://crates.io/crates/ai_api_provider)
+[![Crates.io Version](https://img.shields.io/crates/v/ai_api_provider)](https://crates.io/crates/ai_api_provider)
+[![License: MIT](https://img.shields.io/crates/l/ai_api_provider)](LICENSE)
+
 Multi-provider LLM API client for Rust. One unified interface for 22 providers across 3 wire protocols.
 
 ## Supported Providers
