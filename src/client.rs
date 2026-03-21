@@ -4,6 +4,11 @@ use crate::error::ApiError;
 use crate::protocol::ApiProtocol;
 use crate::provider::{provider_meta, ApiProvider};
 
+/// Default User-Agent sent with all API requests.
+/// Some providers (e.g. Kimi For Coding) check this header to verify the client
+/// is a recognized coding agent.
+pub const DEFAULT_USER_AGENT: &str = "Claude-Code/1.0";
+
 /// Configuration for a single API call.
 #[derive(Debug, Clone)]
 pub struct ApiConfig {
@@ -13,6 +18,9 @@ pub struct ApiConfig {
     pub base_url: Option<String>,
     /// Maximum tokens in the response. Default: 4096.
     pub max_tokens: u32,
+    /// User-Agent header. Defaults to `DEFAULT_USER_AGENT`.
+    /// Some providers (e.g. Kimi For Coding) require a recognized coding agent User-Agent.
+    pub user_agent: String,
 }
 
 impl ApiConfig {
@@ -24,6 +32,7 @@ impl ApiConfig {
             model,
             base_url: None,
             max_tokens: 4096,
+            user_agent: DEFAULT_USER_AGENT.to_string(),
         }
     }
 
@@ -102,13 +111,15 @@ impl ApiClient {
                 self.http
                     .post(&config.endpoint())
                     .header("Content-Type", "application/json")
+                    .header("User-Agent", &config.user_agent)
                     .header("x-api-key", &config.api_key)
                     .header("anthropic-version", "2023-06-01")
             }
             ApiProtocol::OpenAiCompat => {
                 let mut req = self.http
                     .post(&config.endpoint())
-                    .header("Content-Type", "application/json");
+                    .header("Content-Type", "application/json")
+                    .header("User-Agent", &config.user_agent);
                 if !config.api_key.is_empty() {
                     req = req.header("Authorization", format!("Bearer {}", config.api_key));
                 }
@@ -119,6 +130,7 @@ impl ApiClient {
                 self.http
                     .post(&url)
                     .header("Content-Type", "application/json")
+                    .header("User-Agent", &config.user_agent)
             }
         };
 
@@ -200,8 +212,7 @@ fn extract_response_text(protocol: ApiProtocol, raw: &str) -> Result<String, Api
     match protocol {
         ApiProtocol::Anthropic => json["content"]
             .as_array()
-            .and_then(|arr| arr.iter().find(|b| b["type"] == "text"))
-            .and_then(|b| b["text"].as_str())
+            .and_then(|arr| arr.iter().filter(|b| b["type"] == "text").find_map(|b| b["text"].as_str()))
             .map(|s| s.to_string())
             .ok_or_else(|| ApiError::Parse("No text content in Anthropic response".into())),
 
